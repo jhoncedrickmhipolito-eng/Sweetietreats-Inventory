@@ -7,13 +7,44 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Item {
+model FinanceEntry {
+  id        Int      @id @default(autoincrement())
+  income    Float
+  capital   Float
+  profit    Float
+  createdAt DateTime @default(now())
+}
+
+model Product {
+  id          Int           @id @default(autoincrement())
+  name        String        @unique
+  price       Float
+  quantity    Int
+  createdAt   DateTime      @default(now())
+  ingredientUses IngredientUse[]
+}
+
+model IngredientUse {
+  id         Int      @id @default(autoincrement())
+  // Nullable: the product may be deleted later; productName snapshot keeps history readable.
+  productId  Int?
+  product    Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName String
+  quantity   Int
+  unitPrice  Float
+  cost       Float
+  createdAt  DateTime @default(now())
+}
+
+model Expense {
   id          Int      @id @default(autoincrement())
-  name        String
-  category    String?
-  quantity    Int      @default(0)
-  unit        String?
-  price       Float?
+  amount      Float
+  description String
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+}
+
+// Singleton row holding the hashed delete-password.
+model AuthSetting {
+  id           Int    @id @default(autoincrement())
+  passwordHash String
 }
