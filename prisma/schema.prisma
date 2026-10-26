@@ -33,6 +33,8 @@ model IngredientUse {
   quantity   Int
   unitPrice  Float
   cost       Float
+  // When the user says the usage happened (editable); falls back to record time.
+  usedAt     DateTime @default(now())
   createdAt  DateTime @default(now())
 }
 

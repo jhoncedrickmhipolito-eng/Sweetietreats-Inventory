@@ -3,7 +3,7 @@ import Link from "next/link";
 import ActionForm from "@/components/ActionForm";
 import DateFilter from "@/components/DateFilter";
 import { addIngredientUse, deleteIngredientUse } from "@/lib/actions";
-import { getDateFilter } from "@/lib/dateFilter";
+import { getDateFilter, toDateTimeLocal } from "@/lib/dateFilter";
 
 // Always render fresh from the database (no static prerender).
 export const instant = false;
@@ -26,12 +26,12 @@ export default async function IngredientsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const filter = getDateFilter(await searchParams);
+  const filter = getDateFilter(await searchParams, "usedAt");
   const [products, uses] = await Promise.all([
     prisma.product.findMany({ orderBy: { name: "asc" } }),
     prisma.ingredientUse.findMany({
       where: filter.where,
-      orderBy: { createdAt: "desc" },
+      orderBy: { usedAt: "desc" },
     }),
   ]);
 
@@ -87,6 +87,16 @@ export default async function IngredientsPage({
                 className="rounded border border-gray-300 px-3 py-2"
               />
             </label>
+            <label className="grid gap-1 text-sm font-medium">
+              Date &amp; time
+              <input
+                name="usedAt"
+                type="datetime-local"
+                required
+                defaultValue={toDateTimeLocal(new Date())}
+                className="rounded border border-gray-300 px-3 py-2"
+              />
+            </label>
           </ActionForm>
         )}
       </section>
@@ -111,12 +121,12 @@ export default async function IngredientsPage({
           <ul className="mt-4 divide-y divide-gray-100">
             {uses.map((use) => (
               <li key={use.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
-                <span className="w-40 text-sm text-gray-500">
-                  {formatDateTime(use.createdAt)}
-                </span>
                 <span className="font-medium">{use.productName}</span>
                 <span className="text-sm text-gray-600">
                   {use.quantity} × {peso(use.unitPrice)}
+                </span>
+                <span className="text-[11px] leading-tight text-gray-400">
+                  {formatDateTime(use.usedAt)}
                 </span>
                 <span className="text-sm font-semibold text-pink-700">{peso(use.cost)}</span>
                 <Link

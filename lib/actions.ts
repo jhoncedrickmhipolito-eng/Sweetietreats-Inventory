@@ -23,6 +23,14 @@ function parseMoney(value: FormDataEntryValue | null): number | null {
   return n;
 }
 
+// Parse an HTML datetime-local value ("YYYY-MM-DDTHH:mm") in local time.
+// Empty/invalid → null (caller falls back to now).
+function parseDateTimeLocal(value: FormDataEntryValue | null): Date | null {
+  if (typeof value !== "string" || value.trim() === "") return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 /* ---------------- Finance ---------------- */
 
 export async function addFinanceEntry(
@@ -139,6 +147,7 @@ export async function addIngredientUse(
 ): Promise<ActionResult> {
   const productId = Number(formData.get("productId"));
   const quantity = parseMoney(formData.get("quantity"));
+  const usedAt = parseDateTimeLocal(formData.get("usedAt")) ?? new Date();
 
   if (!Number.isInteger(productId) || productId <= 0) return fail("Choose a product.");
   if (quantity === null || !Number.isInteger(quantity) || quantity <= 0)
@@ -159,7 +168,7 @@ export async function addIngredientUse(
       data: { quantity: { decrement: quantity } },
     }),
     prisma.ingredientUse.create({
-      data: { productId, productName: product.name, quantity, unitPrice, cost },
+      data: { productId, productName: product.name, quantity, unitPrice, cost, usedAt },
     }),
   ]);
 
@@ -178,12 +187,15 @@ export async function updateIngredientUse(
   const id = Number(formData.get("id"));
   const quantity = parseMoney(formData.get("quantity"));
   const unitPrice = parseMoney(formData.get("unitPrice"));
+  const usedAt = parseDateTimeLocal(formData.get("usedAt"));
 
   if (!Number.isInteger(id) || id <= 0) return fail("Invalid entry.");
   if (quantity === null || !Number.isInteger(quantity) || quantity <= 0)
     return fail("Quantity used must be a whole number of 1 or more.");
   if (unitPrice === null || unitPrice < 0)
     return fail("Unit price must be zero or a positive amount.");
+  if (formData.get("usedAt") && usedAt === null)
+    return fail("Enter a valid date and time.");
 
   const use = await prisma.ingredientUse.findUnique({ where: { id } });
   if (!use) return fail("Record no longer exists.");
@@ -205,7 +217,7 @@ export async function updateIngredientUse(
   await prisma.$transaction([
     prisma.ingredientUse.update({
       where: { id },
-      data: { quantity, unitPrice, cost },
+      data: { quantity, unitPrice, cost, ...(usedAt ? { usedAt } : {}) },
     }),
     ...(use.productId !== null && delta !== 0
       ? [

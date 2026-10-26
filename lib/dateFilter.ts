@@ -3,13 +3,22 @@
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+// Format a Date for an <input type="datetime-local"> in the browser's local time.
+export function toDateTimeLocal(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export type DateFilter = {
   from: string;
   to: string;
-  where: { createdAt?: { gte: Date; lte: Date } };
+  where: { createdAt?: { gte: Date; lte: Date }; usedAt?: { gte: Date; lte: Date } };
 };
 
-export function getDateFilter(sp: Record<string, string | string[] | undefined>): DateFilter {
+export function getDateFilter(
+  sp: Record<string, string | string[] | undefined>,
+  field: "createdAt" | "usedAt" = "createdAt",
+): DateFilter {
   const rawFrom = typeof sp.from === "string" ? sp.from : "";
   const rawTo = typeof sp.to === "string" ? sp.to : "";
   const from = DATE_RE.test(rawFrom) ? rawFrom : "";
@@ -20,7 +29,7 @@ export function getDateFilter(sp: Record<string, string | string[] | undefined>)
     const range: { gte?: Date; lte?: Date } = {};
     if (from) range.gte = new Date(`${from}T00:00:00`);
     if (to) range.lte = new Date(`${to}T23:59:59.999`);
-    where.createdAt = range as { gte: Date; lte: Date };
+    where[field] = range as { gte: Date; lte: Date };
   }
 
   return { from, to, where };
