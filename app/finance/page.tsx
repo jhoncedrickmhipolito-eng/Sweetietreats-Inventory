@@ -1,6 +1,8 @@
 ﻿import { prisma } from "@/lib/db";
 import ActionForm from "@/components/ActionForm";
+import DateFilter from "@/components/DateFilter";
 import { addFinanceEntry, deleteFinanceEntry } from "@/lib/actions";
+import { getDateFilter } from "@/lib/dateFilter";
 
 // Always render fresh from the database (no static prerender).
 export const instant = false;
@@ -18,8 +20,14 @@ function formatDateTime(d: Date) {
   });
 }
 
-export default async function FinancePage() {
+export default async function FinancePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const filter = getDateFilter(await searchParams);
   const entries = await prisma.financeEntry.findMany({
+    where: filter.where,
     orderBy: { createdAt: "desc" },
   });
 
@@ -69,10 +77,17 @@ export default async function FinancePage() {
       </section>
 
       <section className="rounded-2xl border-2 border-pink-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-[#3d1a10]">History</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-[#3d1a10]">History</h2>
+          <DateFilter from={filter.from} to={filter.to} />
+        </div>
 
         {entries.length === 0 ? (
-          <p className="mt-3 text-sm text-gray-500">No entries yet.</p>
+          <p className="mt-3 text-sm text-gray-500">
+            {filter.from || filter.to
+              ? "No entries in this date range."
+              : "No entries yet."}
+          </p>
         ) : (
           <>
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">

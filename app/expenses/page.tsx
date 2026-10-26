@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db";
 import ActionForm from "@/components/ActionForm";
+import DateFilter from "@/components/DateFilter";
 import { addExpense, deleteExpense } from "@/lib/actions";
+import { getDateFilter } from "@/lib/dateFilter";
 
 // Always render fresh from the database (no static prerender).
 export const instant = false;
@@ -18,16 +20,19 @@ function formatDateTime(d: Date) {
   });
 }
 
-export default async function ExpensesPage() {
+export default async function ExpensesPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const filter = getDateFilter(await searchParams);
   const expenses = await prisma.expense.findMany({
+    where: filter.where,
     orderBy: { createdAt: "desc" },
   });
 
   const total = expenses.reduce((sum, e) => sum + e.amount, 0);
-  const today = new Date().toDateString();
-  const todayTotal = expenses
-    .filter((e) => new Date(e.createdAt).toDateString() === today)
-    .reduce((sum, e) => sum + e.amount, 0);
+  const filtering = Boolean(filter.from || filter.to);
 
   return (
     <div className="space-y-6">
@@ -67,17 +72,23 @@ export default async function ExpensesPage() {
       </section>
 
       <section className="rounded-2xl border-2 border-pink-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-[#3d1a10]">Expenses History</h2>
-          <div className="text-sm text-gray-600">
-            Today: <strong className="text-[#e7549d]">{peso(todayTotal)}</strong>
-            <span className="mx-2 text-gray-300">|</span>
-            All time: <strong className="text-[#e7549d]">{peso(total)}</strong>
-          </div>
+          <DateFilter from={filter.from} to={filter.to} />
         </div>
+        {expenses.length > 0 && (
+          <p className="mt-2 text-sm text-gray-600">
+            {filtering ? "Total shown: " : "All time: "}
+            <strong className="text-[#e7549d]">{peso(total)}</strong>
+          </p>
+        )}
 
         {expenses.length === 0 ? (
-          <p className="mt-3 text-sm text-gray-500">No expenses recorded yet.</p>
+          <p className="mt-3 text-sm text-gray-500">
+            {filter.from || filter.to
+              ? "No expenses in this date range."
+              : "No expenses recorded yet."}
+          </p>
         ) : (
           <ul className="mt-4 divide-y divide-gray-100">
             {expenses.map((expense) => (

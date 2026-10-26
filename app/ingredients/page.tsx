@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db";
 import ActionForm from "@/components/ActionForm";
+import DateFilter from "@/components/DateFilter";
 import { addIngredientUse, deleteIngredientUse } from "@/lib/actions";
+import { getDateFilter } from "@/lib/dateFilter";
 
 // Always render fresh from the database (no static prerender).
 export const instant = false;
@@ -18,19 +20,22 @@ function formatDateTime(d: Date) {
   });
 }
 
-export default async function IngredientsPage() {
+export default async function IngredientsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const filter = getDateFilter(await searchParams);
   const [products, uses] = await Promise.all([
     prisma.product.findMany({ orderBy: { name: "asc" } }),
     prisma.ingredientUse.findMany({
+      where: filter.where,
       orderBy: { createdAt: "desc" },
     }),
   ]);
 
   const totalCost = uses.reduce((sum, u) => sum + u.cost, 0);
-  const today = new Date().toDateString();
-  const todayCost = uses
-    .filter((u) => new Date(u.createdAt).toDateString() === today)
-    .reduce((sum, u) => sum + u.cost, 0);
+  const filtering = Boolean(filter.from || filter.to);
 
   return (
     <div className="space-y-6">
@@ -86,17 +91,21 @@ export default async function IngredientsPage() {
       </section>
 
       <section className="rounded-2xl border-2 border-pink-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-[#3d1a10]">Ingredient Costs</h2>
-          <div className="text-sm text-gray-600">
-            Today: <strong className="text-pink-700">{peso(todayCost)}</strong>
-            <span className="mx-2 text-gray-300">|</span>
-            All time: <strong className="text-pink-700">{peso(totalCost)}</strong>
-          </div>
+          <DateFilter from={filter.from} to={filter.to} />
         </div>
+        {uses.length > 0 && (
+          <p className="mt-2 text-sm text-gray-600">
+            {filtering ? "Total shown: " : "All time: "}
+            <strong className="text-pink-700">{peso(totalCost)}</strong>
+          </p>
+        )}
 
         {uses.length === 0 ? (
-          <p className="mt-3 text-sm text-gray-500">No ingredients used yet.</p>
+          <p className="mt-3 text-sm text-gray-500">
+            {filtering ? "No ingredient uses in this date range." : "No ingredients used yet."}
+          </p>
         ) : (
           <ul className="mt-4 divide-y divide-gray-100">
             {uses.map((use) => (
