@@ -1,4 +1,5 @@
 ﻿import { prisma } from "@/lib/db";
+import Link from "next/link";
 import ActionForm from "@/components/ActionForm";
 import DateFilter from "@/components/DateFilter";
 import { addFinanceEntry, deleteFinanceEntry } from "@/lib/actions";
@@ -120,11 +121,17 @@ export default async function FinancePage({
                   </span>
                   <span className="text-sm text-blue-700">Capital {peso(entry.capital)}</span>
                   <span className="text-sm text-green-700">Profit {peso(entry.profit)}</span>
+                  <Link
+                    href={`/finance/edit/${entry.id}`}
+                    className="ml-auto rounded-full bg-gray-200 px-4 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-300"
+                  >
+                    Edit
+                  </Link>
                   <ActionForm
                     action={deleteFinanceEntry}
                     submitLabel="Delete"
                     variant="danger"
-                    className="ml-auto flex items-center gap-2"
+                    className="flex items-center gap-2"
                   >
                     <input type="hidden" name="id" value={entry.id} />
                     <input

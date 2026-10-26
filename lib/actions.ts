@@ -43,6 +43,31 @@ export async function addFinanceEntry(
   return { ok: true, message: `Recorded: capital ${capital.toFixed(2)}, profit ${profit.toFixed(2)}.` };
 }
 
+export async function updateFinanceEntry(
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  const id = Number(formData.get("id"));
+  const income = parseMoney(formData.get("income"));
+  const capital = parseMoney(formData.get("capital"));
+
+  if (!Number.isInteger(id) || id <= 0) return fail("Invalid entry.");
+  if (income === null || income <= 0) return fail("Income must be a positive amount.");
+  if (capital === null || capital < 0) return fail("Capital must be zero or a positive amount.");
+  if (capital > income) return fail("Capital cannot be greater than income.");
+
+  const existing = await prisma.financeEntry.findUnique({ where: { id } });
+  if (!existing) return fail("Entry no longer exists.");
+
+  const profit = income - capital;
+  await prisma.financeEntry.update({
+    where: { id },
+    data: { income, capital, profit },
+  });
+  revalidatePath("/finance");
+  redirect("/finance");
+}
+
 export async function deleteFinanceEntry(
   _prev: ActionResult | null,
   formData: FormData,
