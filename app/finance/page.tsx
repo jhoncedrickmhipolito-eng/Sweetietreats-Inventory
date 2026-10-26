@@ -3,7 +3,7 @@ import Link from "next/link";
 import ActionForm from "@/components/ActionForm";
 import DateFilter from "@/components/DateFilter";
 import { addFinanceEntry, deleteFinanceEntry } from "@/lib/actions";
-import { getDateFilter } from "@/lib/dateFilter";
+import { getDateFilter, toDateTimeLocal } from "@/lib/dateFilter";
 
 // Always render fresh from the database (no static prerender).
 export const instant = false;
@@ -26,10 +26,10 @@ export default async function FinancePage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const filter = getDateFilter(await searchParams);
+  const filter = getDateFilter(await searchParams, "occurredAt");
   const entries = await prisma.financeEntry.findMany({
     where: filter.where,
-    orderBy: { createdAt: "desc" },
+    orderBy: { occurredAt: "desc" },
   });
 
   const totals = entries.reduce(
@@ -49,7 +49,11 @@ export default async function FinancePage({
           Enter the income and how much of it is capital. Profit is calculated automatically
           (income minus capital).
         </p>
-        <ActionForm action={addFinanceEntry} submitLabel="Save entry" className="mt-4 grid max-w-md gap-3">
+        <ActionForm
+          action={addFinanceEntry}
+          submitLabel="Save entry"
+          className="mt-4 grid max-w-md gap-3 sm:grid-cols-2"
+        >
           <label className="grid gap-1 text-sm font-medium">
             Income (PHP)
             <input
@@ -71,6 +75,16 @@ export default async function FinancePage({
               min="0"
               required
               placeholder="e.g. 600.00"
+              className="rounded border border-gray-300 px-3 py-2"
+            />
+          </label>
+          <label className="grid gap-1 text-sm font-medium sm:col-span-2">
+            Date &amp; time
+            <input
+              name="occurredAt"
+              type="datetime-local"
+              required
+              defaultValue={toDateTimeLocal(new Date())}
               className="rounded border border-gray-300 px-3 py-2"
             />
           </label>
@@ -113,14 +127,14 @@ export default async function FinancePage({
             <ul className="mt-4 divide-y divide-gray-100">
               {entries.map((entry) => (
                 <li key={entry.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
-                  <span className="w-40 text-sm text-gray-500">
-                    {formatDateTime(entry.createdAt)}
-                  </span>
                   <span className="text-sm">
                     <span className="text-gray-500">Income</span> {peso(entry.income)}
                   </span>
                   <span className="text-sm text-blue-700">Capital {peso(entry.capital)}</span>
                   <span className="text-sm text-green-700">Profit {peso(entry.profit)}</span>
+                  <span className="text-[11px] leading-tight text-gray-400">
+                    {formatDateTime(entry.occurredAt)}
+                  </span>
                   <Link
                     href={`/finance/edit/${entry.id}`}
                     className="ml-auto rounded-full bg-gray-200 px-4 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-300"

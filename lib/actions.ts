@@ -39,6 +39,7 @@ export async function addFinanceEntry(
 ): Promise<ActionResult> {
   const income = parseMoney(formData.get("income"));
   const capital = parseMoney(formData.get("capital"));
+  const occurredAt = parseDateTimeLocal(formData.get("occurredAt")) ?? new Date();
 
   if (income === null || income <= 0) return fail("Income must be a positive amount.");
   if (capital === null || capital < 0) return fail("Capital must be zero or a positive amount.");
@@ -46,7 +47,7 @@ export async function addFinanceEntry(
 
   const profit = income - capital;
 
-  await prisma.financeEntry.create({ data: { income, capital, profit } });
+  await prisma.financeEntry.create({ data: { income, capital, profit, occurredAt } });
   revalidatePath("/finance");
   return { ok: true, message: `Recorded: capital ${capital.toFixed(2)}, profit ${profit.toFixed(2)}.` };
 }
@@ -58,11 +59,14 @@ export async function updateFinanceEntry(
   const id = Number(formData.get("id"));
   const income = parseMoney(formData.get("income"));
   const capital = parseMoney(formData.get("capital"));
+  const occurredAt = parseDateTimeLocal(formData.get("occurredAt"));
 
   if (!Number.isInteger(id) || id <= 0) return fail("Invalid entry.");
   if (income === null || income <= 0) return fail("Income must be a positive amount.");
   if (capital === null || capital < 0) return fail("Capital must be zero or a positive amount.");
   if (capital > income) return fail("Capital cannot be greater than income.");
+  if (formData.get("occurredAt") && occurredAt === null)
+    return fail("Enter a valid date and time.");
 
   const existing = await prisma.financeEntry.findUnique({ where: { id } });
   if (!existing) return fail("Entry no longer exists.");
@@ -70,7 +74,7 @@ export async function updateFinanceEntry(
   const profit = income - capital;
   await prisma.financeEntry.update({
     where: { id },
-    data: { income, capital, profit },
+    data: { income, capital, profit, ...(occurredAt ? { occurredAt } : {}) },
   });
   revalidatePath("/finance");
   redirect("/finance");
@@ -305,11 +309,12 @@ export async function addExpense(
 ): Promise<ActionResult> {
   const amount = parseMoney(formData.get("amount"));
   const description = getString(formData, "description").trim();
+  const occurredAt = parseDateTimeLocal(formData.get("occurredAt")) ?? new Date();
 
   if (amount === null || amount <= 0) return fail("Amount must be a positive amount.");
   if (!description) return fail("Description is required.");
 
-  await prisma.expense.create({ data: { amount, description } });
+  await prisma.expense.create({ data: { amount, description, occurredAt } });
   revalidatePath("/expenses");
   return { ok: true, message: `Expense recorded: ${amount.toFixed(2)} for ${description}.` };
 }
@@ -342,15 +347,21 @@ export async function updateExpense(
   const id = Number(formData.get("id"));
   const amount = parseMoney(formData.get("amount"));
   const description = getString(formData, "description").trim();
+  const occurredAt = parseDateTimeLocal(formData.get("occurredAt"));
 
   if (!Number.isInteger(id) || id <= 0) return fail("Invalid expense.");
   if (amount === null || amount <= 0) return fail("Amount must be a positive amount.");
   if (!description) return fail("Description is required.");
+  if (formData.get("occurredAt") && occurredAt === null)
+    return fail("Enter a valid date and time.");
 
   const existing = await prisma.expense.findUnique({ where: { id } });
   if (!existing) return fail("Expense no longer exists.");
 
-  await prisma.expense.update({ where: { id }, data: { amount, description } });
+  await prisma.expense.update({
+    where: { id },
+    data: { amount, description, ...(occurredAt ? { occurredAt } : {}) },
+  });
   revalidatePath("/expenses");
   redirect("/expenses");
 }

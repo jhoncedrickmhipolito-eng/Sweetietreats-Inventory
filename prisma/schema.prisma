@@ -12,6 +12,8 @@ model FinanceEntry {
   income    Float
   capital   Float
   profit    Float
+  // When the user says the income happened (editable); falls back to record time.
+  occurredAt DateTime @default(now())
   createdAt DateTime @default(now())
 }
 
@@ -42,6 +44,8 @@ model Expense {
   id          Int      @id @default(autoincrement())
   amount      Float
   description String
+  // When the user says the expense happened (editable); falls back to record time.
+  occurredAt  DateTime @default(now())
   createdAt   DateTime @default(now())
 }
 

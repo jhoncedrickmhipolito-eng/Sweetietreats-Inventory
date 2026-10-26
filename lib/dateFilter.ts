@@ -12,12 +12,16 @@ export function toDateTimeLocal(d: Date): string {
 export type DateFilter = {
   from: string;
   to: string;
-  where: { createdAt?: { gte: Date; lte: Date }; usedAt?: { gte: Date; lte: Date } };
+  where: {
+    createdAt?: { gte: Date; lte: Date };
+    usedAt?: { gte: Date; lte: Date };
+    occurredAt?: { gte: Date; lte: Date };
+  };
 };
 
 export function getDateFilter(
   sp: Record<string, string | string[] | undefined>,
-  field: "createdAt" | "usedAt" = "createdAt",
+  field: "createdAt" | "usedAt" | "occurredAt" = "createdAt",
 ): DateFilter {
   const rawFrom = typeof sp.from === "string" ? sp.from : "";
   const rawTo = typeof sp.to === "string" ? sp.to : "";

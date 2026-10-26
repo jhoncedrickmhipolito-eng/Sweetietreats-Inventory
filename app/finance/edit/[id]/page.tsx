@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import ActionForm from "@/components/ActionForm";
 import { updateFinanceEntry } from "@/lib/actions";
+import { toDateTimeLocal } from "@/lib/dateFilter";
 
 // Always render fresh from the database (no static prerender).
 export const instant = false;
@@ -34,7 +35,7 @@ export default async function EditFinancePage({
       <section className="rounded-2xl border-2 border-pink-200 bg-white p-5 shadow-sm">
         <h1 className="text-lg font-semibold text-[#3d1a10]">Edit Money Entry</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Recorded on {formatDateTime(entry.createdAt)}. Profit is recalculated
+          Income from {formatDateTime(entry.occurredAt)}. Profit is recalculated
           automatically (income minus capital).
         </p>
         <ActionForm
@@ -64,6 +65,16 @@ export default async function EditFinancePage({
               min="0"
               required
               defaultValue={entry.capital}
+              className="w-full rounded border border-gray-300 px-3 py-2"
+            />
+          </label>
+          <label className="grid gap-1 text-sm font-medium">
+            Date &amp; time
+            <input
+              name="occurredAt"
+              type="datetime-local"
+              required
+              defaultValue={toDateTimeLocal(entry.occurredAt)}
               className="w-full rounded border border-gray-300 px-3 py-2"
             />
           </label>

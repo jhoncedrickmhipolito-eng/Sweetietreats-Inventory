@@ -3,7 +3,7 @@ import Link from "next/link";
 import ActionForm from "@/components/ActionForm";
 import DateFilter from "@/components/DateFilter";
 import { addExpense, deleteExpense } from "@/lib/actions";
-import { getDateFilter } from "@/lib/dateFilter";
+import { getDateFilter, toDateTimeLocal } from "@/lib/dateFilter";
 
 // Always render fresh from the database (no static prerender).
 export const instant = false;
@@ -26,10 +26,10 @@ export default async function ExpensesPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const filter = getDateFilter(await searchParams);
+  const filter = getDateFilter(await searchParams, "occurredAt");
   const expenses = await prisma.expense.findMany({
     where: filter.where,
-    orderBy: { createdAt: "desc" },
+    orderBy: { occurredAt: "desc" },
   });
 
   const total = expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -45,7 +45,7 @@ export default async function ExpensesPage({
         <ActionForm
           action={addExpense}
           submitLabel="Save expense"
-          className="mt-4 grid max-w-lg gap-3"
+          className="mt-4 grid max-w-lg gap-3 sm:grid-cols-2"
         >
           <label className="grid gap-1 text-sm font-medium">
             Amount (PHP)
@@ -60,6 +60,16 @@ export default async function ExpensesPage({
             />
           </label>
           <label className="grid gap-1 text-sm font-medium">
+            Date &amp; time
+            <input
+              name="occurredAt"
+              type="datetime-local"
+              required
+              defaultValue={toDateTimeLocal(new Date())}
+              className="w-full rounded border border-gray-300 px-3 py-2"
+            />
+          </label>
+          <label className="grid gap-1 text-sm font-medium sm:col-span-2">
             Description of the product
             <input
               name="description"
@@ -94,12 +104,12 @@ export default async function ExpensesPage({
           <ul className="mt-4 divide-y divide-gray-100">
             {expenses.map((expense) => (
               <li key={expense.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
-                <span className="w-40 text-sm text-gray-500">
-                  {formatDateTime(expense.createdAt)}
-                </span>
                 <span className="font-medium">{expense.description}</span>
                 <span className="text-sm font-semibold text-red-700">
                   {peso(expense.amount)}
+                </span>
+                <span className="text-[11px] leading-tight text-gray-400">
+                  {formatDateTime(expense.occurredAt)}
                 </span>
                 <Link
                   href={`/expenses/edit/${expense.id}`}
