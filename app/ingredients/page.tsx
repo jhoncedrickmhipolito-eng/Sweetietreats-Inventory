@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import Link from "next/link";
 import ActionForm from "@/components/ActionForm";
 import DateFilter from "@/components/DateFilter";
 import { addIngredientUse, deleteIngredientUse } from "@/lib/actions";
@@ -118,11 +119,17 @@ export default async function IngredientsPage({
                   {use.quantity} × {peso(use.unitPrice)}
                 </span>
                 <span className="text-sm font-semibold text-pink-700">{peso(use.cost)}</span>
+                <Link
+                  href={`/ingredients/edit/${use.id}`}
+                  className="ml-auto rounded-full bg-gray-200 px-4 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-300"
+                >
+                  Edit
+                </Link>
                 <ActionForm
                   action={deleteIngredientUse}
                   submitLabel="Delete"
                   variant="danger"
-                  className="ml-auto flex items-center gap-2"
+                  className="flex items-center gap-2"
                 >
                   <input type="hidden" name="id" value={use.id} />
                   <input

@@ -171,6 +171,63 @@ export async function addIngredientUse(
   };
 }
 
+export async function updateIngredientUse(
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  const id = Number(formData.get("id"));
+  const quantity = parseMoney(formData.get("quantity"));
+  const unitPrice = parseMoney(formData.get("unitPrice"));
+
+  if (!Number.isInteger(id) || id <= 0) return fail("Invalid entry.");
+  if (quantity === null || !Number.isInteger(quantity) || quantity <= 0)
+    return fail("Quantity used must be a whole number of 1 or more.");
+  if (unitPrice === null || unitPrice < 0)
+    return fail("Unit price must be zero or a positive amount.");
+
+  const use = await prisma.ingredientUse.findUnique({ where: { id } });
+  if (!use) return fail("Record no longer exists.");
+
+  const delta = quantity - use.quantity;
+  const cost = unitPrice * quantity;
+
+  if (use.productId !== null && delta > 0) {
+    // Increasing the quantity needs that many more items in stock.
+    const product = await prisma.product.findUnique({
+      where: { id: use.productId },
+    });
+    if (product && product.quantity < delta)
+      return fail(
+        `Not enough stock to increase usage: only ${product.quantity} x ${product.name} available.`,
+      );
+  }
+
+  await prisma.$transaction([
+    prisma.ingredientUse.update({
+      where: { id },
+      data: { quantity, unitPrice, cost },
+    }),
+    ...(use.productId !== null && delta !== 0
+      ? [
+          prisma.product.update({
+            where: { id: use.productId },
+            data: { quantity: { decrement: delta } },
+          }),
+        ]
+      : []),
+  ]);
+
+  revalidatePath("/ingredients");
+  revalidatePath("/stock");
+  return {
+    ok: true,
+    message:
+      use.productId !== null
+        ? `Usage updated: ${quantity} x ${use.productName}. Cost: ${cost.toFixed(2)}. Stock adjusted.`
+        : `Usage updated: ${quantity} x ${use.productName}. Cost: ${cost.toFixed(2)}.`,
+  };
+}
+
 export async function deleteIngredientUse(
   _prev: ActionResult | null,
   formData: FormData,
