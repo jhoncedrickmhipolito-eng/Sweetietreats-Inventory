@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { ADMIN_CODE, checkPassword, setPassword } from "@/lib/auth";
 
@@ -238,6 +239,26 @@ export async function deleteExpense(
   await prisma.expense.delete({ where: { id } });
   revalidatePath("/expenses");
   return { ok: true, message: "Expense deleted." };
+}
+
+export async function updateExpense(
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  const id = Number(formData.get("id"));
+  const amount = parseMoney(formData.get("amount"));
+  const description = getString(formData, "description").trim();
+
+  if (!Number.isInteger(id) || id <= 0) return fail("Invalid expense.");
+  if (amount === null || amount <= 0) return fail("Amount must be a positive amount.");
+  if (!description) return fail("Description is required.");
+
+  const existing = await prisma.expense.findUnique({ where: { id } });
+  if (!existing) return fail("Expense no longer exists.");
+
+  await prisma.expense.update({ where: { id }, data: { amount, description } });
+  revalidatePath("/expenses");
+  redirect("/expenses");
 }
 
 /* ---------------- Security ---------------- */
