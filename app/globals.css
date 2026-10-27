@@ -17,3 +17,31 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Shown only when printing (report header, active date range). */
+.print-only {
+  display: none;
+}
+
+/* Printing: drop site chrome and anything you click/type into,
+   keep only the report content on a plain white page. */
+@media print {
+  .print-only {
+    display: block !important;
+  }
+
+  .no-print,
+  form,
+  button {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  main {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+}

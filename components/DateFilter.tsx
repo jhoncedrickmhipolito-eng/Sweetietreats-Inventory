@@ -15,7 +15,7 @@ export default function DateFilter({ from, to }: Props) {
     <form
       action={pathname}
       method="get"
-      className="flex flex-wrap items-end gap-2 text-sm"
+      className="no-print flex flex-wrap items-end gap-2 text-sm"
     >
       <label className="grid gap-1 font-medium">
         From

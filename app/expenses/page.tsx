@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import ActionForm from "@/components/ActionForm";
 import DateFilter from "@/components/DateFilter";
+import PrintButton from "@/components/PrintButton";
 import { addExpense, deleteExpense } from "@/lib/actions";
 import { getDateFilter, toDateTimeLocal } from "@/lib/dateFilter";
 
@@ -37,7 +38,7 @@ export default async function ExpensesPage({
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border-2 border-pink-200 bg-white p-5 shadow-sm">
+      <section className="no-print rounded-2xl border-2 border-pink-200 bg-white p-5 shadow-sm">
         <h1 className="text-lg font-semibold text-[#3d1a10]">Record Expense</h1>
         <p className="mt-1 text-sm text-gray-500">
           Enter how much you spent and what it was for.
@@ -85,8 +86,16 @@ export default async function ExpensesPage({
       <section className="rounded-2xl border-2 border-pink-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-[#3d1a10]">Expenses History</h2>
-          <DateFilter from={filter.from} to={filter.to} />
+          <div className="flex flex-wrap items-end gap-2">
+            <DateFilter from={filter.from} to={filter.to} />
+            <PrintButton />
+          </div>
         </div>
+        <p className="print-only mt-2 text-sm">
+          Sweetie Treats — Expenses report ·{" "}
+          {filtering ? `${filter.from} to ${filter.to}` : "All dates"} · Printed{" "}
+          {formatDateTime(new Date())}
+        </p>
         {expenses.length > 0 && (
           <p className="mt-2 text-sm text-gray-600">
             {filtering ? "Total shown: " : "All time: "}
@@ -113,7 +122,7 @@ export default async function ExpensesPage({
                 </span>
                 <Link
                   href={`/expenses/edit/${expense.id}`}
-                  className="ml-auto rounded-full bg-gray-200 px-4 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-300"
+                  className="no-print ml-auto rounded-full bg-gray-200 px-4 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-300"
                 >
                   Edit
                 </Link>

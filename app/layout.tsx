@@ -26,7 +26,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#faf3e3] text-[#2b0f0a]">
-        <header className="bg-white/70 shadow-sm">
+        <header className="no-print bg-white/70 shadow-sm">
           <div className="mx-auto flex max-w-4xl items-center gap-3 px-4 py-3">
             <Image
               src="/logo.png"

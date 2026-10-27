@@ -36,12 +36,23 @@ function StatCard({
 }
 
 export default async function DashboardPage() {
-  const [entries, expenses, uses, products] = await Promise.all([
+  const [allEntries, allExpenses, allUses, products] = await Promise.all([
     prisma.financeEntry.findMany(),
     prisma.expense.findMany(),
     prisma.ingredientUse.findMany(),
     prisma.product.findMany(),
   ]);
+
+  // This month's window (local time), e.g. 2026-10-01 → 2026-11-01.
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const monthLabel = now.toLocaleString("en-PH", { month: "long", year: "numeric" });
+  const inMonth = (d: Date) => d >= monthStart && d < monthEnd;
+
+  const entries = allEntries.filter((e) => inMonth(e.occurredAt));
+  const expenses = allExpenses.filter((e) => inMonth(e.occurredAt));
+  const uses = allUses.filter((u) => inMonth(u.usedAt));
 
   const totals = entries.reduce(
     (acc, e) => ({
@@ -53,13 +64,13 @@ export default async function DashboardPage() {
   );
 
   const expenseTotal = expenses.reduce((s, e) => s + e.amount, 0);
-  const expenseToday = expenses.filter((e) => isToday(e.createdAt)).reduce((s, e) => s + e.amount, 0);
+  const expenseToday = expenses.filter((e) => isToday(e.occurredAt)).reduce((s, e) => s + e.amount, 0);
   const ingredientTotal = uses.reduce((s, u) => s + u.cost, 0);
-  const ingredientToday = uses.filter((u) => isToday(u.createdAt)).reduce((s, u) => s + u.cost, 0);
+  const ingredientToday = uses.filter((u) => isToday(u.usedAt)).reduce((s, u) => s + u.cost, 0);
   const stockValue = products.reduce((s, p) => s + p.price * p.quantity, 0);
   const stockItems = products.reduce((s, p) => s + p.quantity, 0);
 
-  // Money left = profit earned, minus everything spent on expenses and ingredients.
+  // Money left = this month's profit, minus this month's expenses and ingredient costs.
   const moneyLeft = totals.profit - expenseTotal - ingredientTotal;
 
   return (
@@ -67,34 +78,35 @@ export default async function DashboardPage() {
       <section className="rounded-2xl border-2 border-pink-200 bg-white p-5 shadow-sm">
         <h1 className="text-lg font-semibold text-[#3d1a10]">Business Dashboard</h1>
         <p className="mt-1 text-sm text-gray-500">
-          A summary of everything recorded in the app.
+          What was recorded in <strong>{monthLabel}</strong>. Stock is shown as it is right
+          now.
         </p>
 
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <StatCard label="Total Income" value={peso(totals.income)} tone="pink" />
-          <StatCard label="Total Capital" value={peso(totals.capital)} tone="blue" />
-          <StatCard label="Total Profit" value={peso(totals.profit)} tone="green" />
-          <StatCard label="Expenses (all time)" value={peso(expenseTotal)} tone="red" />
+          <StatCard label={`Income (${monthLabel})`} value={peso(totals.income)} tone="pink" />
+          <StatCard label={`Capital (${monthLabel})`} value={peso(totals.capital)} tone="blue" />
+          <StatCard label={`Profit (${monthLabel})`} value={peso(totals.profit)} tone="green" />
+          <StatCard label={`Expenses (${monthLabel})`} value={peso(expenseTotal)} tone="red" />
           <StatCard label="Expenses (today)" value={peso(expenseToday)} tone="red" />
-          <StatCard label="Ingredient cost (all time)" value={peso(ingredientTotal)} tone="amber" />
+          <StatCard label={`Ingredient cost (${monthLabel})`} value={peso(ingredientTotal)} tone="amber" />
           <StatCard label="Ingredient cost (today)" value={peso(ingredientToday)} tone="amber" />
           <StatCard label={`Stock value (${stockItems} items)`} value={peso(stockValue)} tone="blue" />
           <StatCard
-            label="Money left"
+            label={`Money left (${monthLabel})`}
             value={peso(moneyLeft)}
             tone={moneyLeft < 0 ? "red" : "green"}
           />
         </div>
 
         <p className="mt-4 rounded-lg bg-gray-50 p-3 text-xs text-gray-500">
-          <strong>Money left</strong> = total profit − all-time expenses − all-time ingredient
-          costs. Stock value is separate: it is what your remaining products are worth, not
-          cash.
+          <strong>Money left ({monthLabel})</strong> = profit earned this month − expenses
+          recorded this month − ingredient costs recorded this month. Stock value is
+          separate: it is what your remaining products are worth, not cash.
         </p>
       </section>
 
       <section className="rounded-2xl border-2 border-pink-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-[#3d1a10]">Activity at a glance</h2>
+        <h2 className="text-lg font-semibold text-[#3d1a10]">Activity in {monthLabel}</h2>
         <ul className="mt-3 grid gap-2 text-sm text-gray-700 sm:grid-cols-2">
           <li className="rounded-lg bg-pink-50 p-3">
             <strong>{entries.length}</strong> money {entries.length === 1 ? "entry" : "entries"} recorded
