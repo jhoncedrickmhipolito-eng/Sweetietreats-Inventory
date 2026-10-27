@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import ActionForm from "@/components/ActionForm";
-import DateFilter from "@/components/DateFilter";
+import HistoryControls from "@/components/HistoryControls";
 import PrintButton from "@/components/PrintButton";
+import CsvLink from "@/components/CsvLink";
 import { addExpense, deleteExpense } from "@/lib/actions";
 import { getDateFilter, toDateTimeLocal } from "@/lib/dateFilter";
 
@@ -11,6 +12,26 @@ export const instant = false;
 
 const peso = (n: number) =>
   n.toLocaleString("en-PH", { style: "currency", currency: "PHP" });
+
+const SORT_OPTIONS = [
+  { value: "newest", label: "Newest first" },
+  { value: "oldest", label: "Oldest first" },
+  { value: "amount-desc", label: "Highest amount" },
+  { value: "amount-asc", label: "Lowest amount" },
+];
+
+function orderByFor(sort: string) {
+  switch (sort) {
+    case "oldest":
+      return { occurredAt: "asc" } as const;
+    case "amount-desc":
+      return { amount: "desc" } as const;
+    case "amount-asc":
+      return { amount: "asc" } as const;
+    default:
+      return { occurredAt: "desc" } as const;
+  }
+}
 
 function formatDateTime(d: Date) {
   return d.toLocaleString("en-PH", {
@@ -27,14 +48,25 @@ export default async function ExpensesPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const filter = getDateFilter(await searchParams, "occurredAt");
+  const sp = await searchParams;
+  const filter = getDateFilter(sp, "occurredAt");
+  const q = typeof sp.q === "string" ? sp.q.trim().slice(0, 100) : "";
+  const sort = typeof sp.sort === "string" ? sp.sort : "newest";
   const expenses = await prisma.expense.findMany({
-    where: filter.where,
-    orderBy: { occurredAt: "desc" },
+    where: {
+      ...filter.where,
+      ...(q ? { description: { contains: q } } : {}),
+    },
+    orderBy: orderByFor(sort),
   });
 
   const total = expenses.reduce((sum, e) => sum + e.amount, 0);
   const filtering = Boolean(filter.from || filter.to);
+
+  const exportQuery = new URLSearchParams({ table: "expenses", sort });
+  if (filter.from) exportQuery.set("from", filter.from);
+  if (filter.to) exportQuery.set("to", filter.to);
+  if (q) exportQuery.set("q", q);
 
   return (
     <div className="space-y-6">
@@ -87,9 +119,20 @@ export default async function ExpensesPage({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-[#3d1a10]">Expenses History</h2>
           <div className="flex flex-wrap items-end gap-2">
-            <DateFilter from={filter.from} to={filter.to} />
+            <CsvLink href={`/api/export?${exportQuery.toString()}`} />
             <PrintButton />
           </div>
+        </div>
+        <div className="mt-3">
+          <HistoryControls
+            action="/expenses"
+            from={filter.from}
+            to={filter.to}
+            q={q}
+            sort={sort}
+            sortOptions={SORT_OPTIONS}
+            searchPlaceholder="Search description…"
+          />
         </div>
         <p className="print-only mt-2 text-sm">
           Sweetie Treats — Expenses report ·{" "}
@@ -105,9 +148,11 @@ export default async function ExpensesPage({
 
         {expenses.length === 0 ? (
           <p className="mt-3 text-sm text-gray-500">
-            {filter.from || filter.to
-              ? "No expenses in this date range."
-              : "No expenses recorded yet."}
+            {q
+              ? "No expenses match your search."
+              : filter.from || filter.to
+                ? "No expenses in this date range."
+                : "No expenses recorded yet."}
           </p>
         ) : (
           <table className="mt-4 w-full border-collapse text-left text-sm">

@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import ActionForm from "@/components/ActionForm";
-import DateFilter from "@/components/DateFilter";
+import HistoryControls from "@/components/HistoryControls";
 import PrintButton from "@/components/PrintButton";
+import CsvLink from "@/components/CsvLink";
 import { addIngredientUse, deleteIngredientUse } from "@/lib/actions";
 import { getDateFilter, toDateTimeLocal } from "@/lib/dateFilter";
 
@@ -11,6 +12,26 @@ export const instant = false;
 
 const peso = (n: number) =>
   n.toLocaleString("en-PH", { style: "currency", currency: "PHP" });
+
+const SORT_OPTIONS = [
+  { value: "newest", label: "Newest first" },
+  { value: "oldest", label: "Oldest first" },
+  { value: "cost-desc", label: "Highest cost" },
+  { value: "cost-asc", label: "Lowest cost" },
+];
+
+function orderByFor(sort: string) {
+  switch (sort) {
+    case "oldest":
+      return { usedAt: "asc" } as const;
+    case "cost-desc":
+      return { cost: "desc" } as const;
+    case "cost-asc":
+      return { cost: "asc" } as const;
+    default:
+      return { usedAt: "desc" } as const;
+  }
+}
 
 function formatDateTime(d: Date) {
   return d.toLocaleString("en-PH", {
@@ -27,17 +48,28 @@ export default async function IngredientsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const filter = getDateFilter(await searchParams, "usedAt");
+  const sp = await searchParams;
+  const filter = getDateFilter(sp, "usedAt");
+  const q = typeof sp.q === "string" ? sp.q.trim().slice(0, 100) : "";
+  const sort = typeof sp.sort === "string" ? sp.sort : "newest";
   const [products, uses] = await Promise.all([
     prisma.product.findMany({ orderBy: { name: "asc" } }),
     prisma.ingredientUse.findMany({
-      where: filter.where,
-      orderBy: { usedAt: "desc" },
+      where: {
+        ...filter.where,
+        ...(q ? { productName: { contains: q } } : {}),
+      },
+      orderBy: orderByFor(sort),
     }),
   ]);
 
   const totalCost = uses.reduce((sum, u) => sum + u.cost, 0);
   const filtering = Boolean(filter.from || filter.to);
+
+  const exportQuery = new URLSearchParams({ table: "ingredients", sort });
+  if (filter.from) exportQuery.set("from", filter.from);
+  if (filter.to) exportQuery.set("to", filter.to);
+  if (q) exportQuery.set("q", q);
 
   return (
     <div className="space-y-6">
@@ -106,9 +138,20 @@ export default async function IngredientsPage({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-[#3d1a10]">Ingredient Costs</h2>
           <div className="flex flex-wrap items-end gap-2">
-            <DateFilter from={filter.from} to={filter.to} />
+            <CsvLink href={`/api/export?${exportQuery.toString()}`} />
             <PrintButton />
           </div>
+        </div>
+        <div className="mt-3">
+          <HistoryControls
+            action="/ingredients"
+            from={filter.from}
+            to={filter.to}
+            q={q}
+            sort={sort}
+            sortOptions={SORT_OPTIONS}
+            searchPlaceholder="Search product name…"
+          />
         </div>
         <p className="print-only mt-2 text-sm">
           Sweetie Treats — Ingredients report ·{" "}
@@ -124,7 +167,11 @@ export default async function IngredientsPage({
 
         {uses.length === 0 ? (
           <p className="mt-3 text-sm text-gray-500">
-            {filtering ? "No ingredient uses in this date range." : "No ingredients used yet."}
+            {q
+              ? "No ingredient uses match your search."
+              : filtering
+                ? "No ingredient uses in this date range."
+                : "No ingredients used yet."}
           </p>
         ) : (
           <table className="mt-4 w-full border-collapse text-left text-sm">

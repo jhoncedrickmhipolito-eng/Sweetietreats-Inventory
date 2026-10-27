@@ -143,6 +143,33 @@ export async function updateProductStock(
   return { ok: true, message: `${product.name} stock set to ${quantity}.` };
 }
 
+export async function updateProduct(
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  const id = Number(formData.get("id"));
+  const name = getString(formData, "name").trim();
+  const price = parseMoney(formData.get("price"));
+  const quantity = parseMoney(formData.get("quantity"));
+
+  if (!Number.isInteger(id) || id <= 0) return fail("Invalid product.");
+  if (!name) return fail("Product name is required.");
+  if (price === null || price < 0) return fail("Price must be zero or a positive amount.");
+  if (quantity === null || !Number.isInteger(quantity) || quantity < 0)
+    return fail("Quantity must be a whole number of 0 or more.");
+
+  const existing = await prisma.product.findUnique({ where: { id } });
+  if (!existing) return fail("Product not found.");
+
+  const dup = await prisma.product.findFirst({ where: { name, NOT: { id } } });
+  if (dup) return fail(`"${name}" already exists in stock.`);
+
+  await prisma.product.update({ where: { id }, data: { name, price, quantity } });
+  revalidatePath("/stock");
+  revalidatePath("/ingredients");
+  redirect("/stock");
+}
+
 /* ---------------- Ingredients ---------------- */
 
 export async function addIngredientUse(
@@ -382,4 +409,197 @@ export async function changePassword(
 
   await setPassword(newPassword);
   return { ok: true, message: "Password changed successfully." };
+}
+
+/* ---------------- Backup restore ---------------- */
+
+type BackupProduct = { id: number; name: string; price: number; quantity: number };
+type BackupFinance = { id: number; income: number; capital: number; occurredAt: Date };
+type BackupExpense = { id: number; amount: number; description: string; occurredAt: Date };
+type BackupUse = {
+  id: number;
+  productId: number | null;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  cost: number;
+  usedAt: Date;
+};
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+function asId(v: unknown): number | null {
+  return typeof v === "number" && Number.isInteger(v) && v > 0 ? v : null;
+}
+function asNumber(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+function asText(v: unknown): string | null {
+  return typeof v === "string" && v.trim() !== "" ? v.trim() : null;
+}
+function asDate(v: unknown): Date | null {
+  if (typeof v !== "string") return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+function asArray(v: unknown): unknown[] | null {
+  return Array.isArray(v) ? v : null;
+}
+
+function uniqueIds(items: { id: number }[]): boolean {
+  return new Set(items.map((i) => i.id)).size === items.length;
+}
+
+/**
+ * Validates a downloaded backup and replaces all current data with it.
+ * Password required; everything happens in one transaction, so a bad file
+ * leaves the existing data untouched.
+ */
+export async function restoreBackup(
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  const password = getString(formData, "password");
+  if (!password) return fail("Enter your password to restore a backup.");
+  const allowed = await checkPassword(password);
+  if (!allowed) return fail("Incorrect password. Nothing was restored.");
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0)
+    return fail("Choose a backup file (.json) to restore.");
+  if (file.size > 5_000_000) return fail("That backup file is too large (over 5 MB).");
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await file.text());
+  } catch {
+    return fail("That file is not a valid backup (it is not JSON).");
+  }
+  if (!isRecord(parsed)) return fail("That file is not a valid backup (unexpected shape).");
+
+  const rawProducts = asArray(parsed.products);
+  const rawFinance = asArray(parsed.financeEntries);
+  const rawExpenses = asArray(parsed.expenses);
+  const rawUses = asArray(parsed.ingredientUses);
+  if (!rawProducts || !rawFinance || !rawExpenses || !rawUses)
+    return fail("That backup file is missing required sections.");
+
+  const products: BackupProduct[] = [];
+  for (const r of rawProducts) {
+    if (!isRecord(r)) return fail("Backup product entry is malformed.");
+    const id = asId(r.id);
+    const name = asText(r.name);
+    const price = asNumber(r.price);
+    const quantity = asNumber(r.quantity);
+    if (id === null || name === null || price === null || price < 0)
+      return fail("Backup contains an invalid product (id/name/price).");
+    if (quantity === null || !Number.isInteger(quantity) || quantity < 0)
+      return fail("Backup contains an invalid product quantity.");
+    products.push({ id, name, price, quantity });
+  }
+  if (products.length > 0 && !uniqueIds(products))
+    return fail("Backup contains duplicate product ids.");
+  if (new Set(products.map((p) => p.name)).size !== products.length)
+    return fail("Backup contains duplicate product names.");
+
+  const financeEntries: BackupFinance[] = [];
+  for (const r of rawFinance) {
+    if (!isRecord(r)) return fail("Backup money entry is malformed.");
+    const id = asId(r.id);
+    const income = asNumber(r.income);
+    const capital = asNumber(r.capital);
+    const occurredAt = asDate(r.occurredAt);
+    if (
+      id === null ||
+      income === null ||
+      income <= 0 ||
+      capital === null ||
+      capital < 0 ||
+      capital > income ||
+      occurredAt === null
+    )
+      return fail("Backup contains an invalid money entry.");
+    financeEntries.push({ id, income, capital, occurredAt });
+  }
+  if (financeEntries.length > 0 && !uniqueIds(financeEntries))
+    return fail("Backup contains duplicate money entry ids.");
+
+  const expenses: BackupExpense[] = [];
+  for (const r of rawExpenses) {
+    if (!isRecord(r)) return fail("Backup expense is malformed.");
+    const id = asId(r.id);
+    const amount = asNumber(r.amount);
+    const description = asText(r.description);
+    const occurredAt = asDate(r.occurredAt);
+    if (id === null || amount === null || amount <= 0 || description === null || occurredAt === null)
+      return fail("Backup contains an invalid expense.");
+    expenses.push({ id, amount, description, occurredAt });
+  }
+  if (expenses.length > 0 && !uniqueIds(expenses))
+    return fail("Backup contains duplicate expense ids.");
+
+  const productIds = new Set(products.map((p) => p.id));
+  const ingredientUses: BackupUse[] = [];
+  for (const r of rawUses) {
+    if (!isRecord(r)) return fail("Backup ingredient entry is malformed.");
+    const id = asId(r.id);
+    const productName = asText(r.productName);
+    const quantity = asNumber(r.quantity);
+    const unitPrice = asNumber(r.unitPrice);
+    const cost = asNumber(r.cost);
+    const usedAt = asDate(r.usedAt);
+    const rawProductId = r.productId;
+    const productId = rawProductId === null ? null : asId(rawProductId);
+    if (
+      id === null ||
+      productName === null ||
+      quantity === null ||
+      !Number.isInteger(quantity) ||
+      quantity <= 0 ||
+      unitPrice === null ||
+      unitPrice < 0 ||
+      cost === null ||
+      cost < 0 ||
+      usedAt === null
+    )
+      return fail("Backup contains an invalid ingredient record.");
+    if (rawProductId !== null && productId === null)
+      return fail("Backup contains an invalid product reference.");
+    if (productId !== null && !productIds.has(productId))
+      return fail("Backup ingredient record points to a product that is not in the backup.");
+    ingredientUses.push({ id, productId, productName, quantity, unitPrice, cost, usedAt });
+  }
+  if (ingredientUses.length > 0 && !uniqueIds(ingredientUses))
+    return fail("Backup contains duplicate ingredient ids.");
+
+  // One transaction: either the whole restore happens, or nothing changes.
+  await prisma.$transaction([
+    prisma.ingredientUse.deleteMany(),
+    prisma.expense.deleteMany(),
+    prisma.financeEntry.deleteMany(),
+    prisma.product.deleteMany(),
+    prisma.product.createMany({
+      data: products.map((p) => ({ ...p, createdAt: new Date() })),
+    }),
+    prisma.financeEntry.createMany({
+      data: financeEntries.map((e) => ({
+        ...e,
+        profit: e.income - e.capital,
+        createdAt: new Date(),
+      })),
+    }),
+    prisma.expense.createMany({
+      data: expenses.map((e) => ({ ...e, createdAt: new Date() })),
+    }),
+    prisma.ingredientUse.createMany({
+      data: ingredientUses.map((u) => ({ ...u, createdAt: new Date() })),
+    }),
+  ]);
+
+  revalidatePath("/", "layout");
+  return {
+    ok: true,
+    message: `Restored ${products.length} products, ${financeEntries.length} money entries, ${expenses.length} expenses, and ${ingredientUses.length} ingredient records.`,
+  };
 }

@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/db";
+import Link from "next/link";
 import ActionForm from "@/components/ActionForm";
 import StockQtyInput from "@/components/StockQtyInput";
 import PrintButton from "@/components/PrintButton";
+import CsvLink from "@/components/CsvLink";
+import HistoryControls from "@/components/HistoryControls";
 import { addProduct, deleteProduct } from "@/lib/actions";
 
 // Always render fresh from the database (no static prerender).
@@ -9,6 +12,32 @@ export const instant = false;
 
 const peso = (n: number) =>
   n.toLocaleString("en-PH", { style: "currency", currency: "PHP" });
+
+const SORT_OPTIONS = [
+  { value: "name-asc", label: "Name A → Z" },
+  { value: "name-desc", label: "Name Z → A" },
+  { value: "price-desc", label: "Price high → low" },
+  { value: "price-asc", label: "Price low → high" },
+  { value: "qty-desc", label: "Most in stock" },
+  { value: "qty-asc", label: "Least in stock" },
+];
+
+function orderByFor(sort: string) {
+  switch (sort) {
+    case "name-desc":
+      return { name: "desc" } as const;
+    case "price-desc":
+      return { price: "desc" } as const;
+    case "price-asc":
+      return { price: "asc" } as const;
+    case "qty-desc":
+      return { quantity: "desc" } as const;
+    case "qty-asc":
+      return { quantity: "asc" } as const;
+    default:
+      return { name: "asc" } as const;
+  }
+}
 
 function formatDateTime(d: Date) {
   return d.toLocaleString("en-PH", {
@@ -20,12 +49,24 @@ function formatDateTime(d: Date) {
   });
 }
 
-export default async function StockPage() {
+export default async function StockPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const q = typeof sp.q === "string" ? sp.q.trim().slice(0, 100) : "";
+  const sort = typeof sp.sort === "string" ? sp.sort : "name-asc";
+
   const products = await prisma.product.findMany({
-    orderBy: { name: "asc" },
+    where: q ? { name: { contains: q } } : undefined,
+    orderBy: orderByFor(sort),
   });
 
   const stockValue = products.reduce((sum, p) => sum + p.price * p.quantity, 0);
+
+  const exportQuery = new URLSearchParams({ table: "stock", sort });
+  if (q) exportQuery.set("q", q);
 
   return (
     <div className="space-y-6">
@@ -80,8 +121,20 @@ export default async function StockPage() {
             <span className="text-sm text-gray-500">
               Total value: <strong>{peso(stockValue)}</strong>
             </span>
+            <CsvLink href={`/api/export?${exportQuery.toString()}`} />
             <PrintButton />
           </div>
+        </div>
+        <div className="mt-3">
+          <HistoryControls
+            action="/stock"
+            from=""
+            to=""
+            q={q}
+            sort={sort}
+            sortOptions={SORT_OPTIONS}
+            searchPlaceholder="Search product name…"
+          />
         </div>
         <p className="print-only mt-2 text-sm">
           Sweetie Treats — Stock report (current stock) · Printed{" "}
@@ -89,7 +142,9 @@ export default async function StockPage() {
         </p>
 
         {products.length === 0 ? (
-          <p className="mt-3 text-sm text-gray-500">No products yet. Add one above.</p>
+          <p className="mt-3 text-sm text-gray-500">
+            {q ? "No products match your search." : "No products yet. Add one above."}
+          </p>
         ) : (
           <table className="mt-4 w-full border-collapse text-left text-sm">
             <thead>
@@ -120,6 +175,12 @@ export default async function StockPage() {
                   </td>
                   <td className="no-print py-3">
                     <div className="flex items-center justify-end gap-2">
+                      <Link
+                        href={`/stock/edit/${product.id}`}
+                        className="rounded-full bg-gray-200 px-4 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-300"
+                      >
+                        Edit
+                      </Link>
                       <StockQtyInput
                         productId={product.id}
                         initialQty={product.quantity}
