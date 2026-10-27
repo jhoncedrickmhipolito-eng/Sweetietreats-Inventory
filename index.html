@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sweetie Treats Inventory</title>
+  <style>
+    :root {
+      --cream: #faf3e3;
+      --pink: #e7549d;
+      --pink-dark: #d13f88;
+      --chocolate: #3d1a10;
+      --chocolate-dark: #2b0f0a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--cream);
+      color: var(--chocolate);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    header { text-align: center; margin-bottom: 32px; }
+
+    header img {
+      width: 96px;
+      height: 96px;
+      object-fit: contain;
+      border-radius: 24px;
+      background: #fff;
+      padding: 10px;
+      box-shadow: 0 4px 14px rgba(61, 26, 16, 0.15);
+    }
+
+    h1 {
+      margin-top: 16px;
+      font-size: 2rem;
+      color: var(--chocolate-dark);
+      letter-spacing: 0.5px;
+    }
+
+    h1 span { color: var(--pink); }
+
+    .subtitle {
+      margin-top: 6px;
+      color: #7a5c4f;
+      font-size: 0.95rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      width: 100%;
+      max-width: 860px;
+    }
+
+    .card {
+      display: block;
+      background: #fff;
+      border: 2px solid #f3d9e7;
+      border-radius: 18px;
+      padding: 20px;
+      text-decoration: none;
+      color: var(--chocolate);
+      transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+      box-shadow: 0 2px 8px rgba(61, 26, 16, 0.06);
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+      border-color: var(--pink);
+      box-shadow: 0 8px 20px rgba(231, 84, 157, 0.18);
+    }
+
+    .card .icon { font-size: 1.6rem; }
+
+    .card h2 {
+      font-size: 1.05rem;
+      margin: 8px 0 4px;
+      color: var(--chocolate-dark);
+    }
+
+    .card p { font-size: 0.85rem; color: #8a6f62; line-height: 1.4; }
+
+    .status {
+      margin-top: 28px;
+      background: #fff;
+      border: 2px dashed #f3b8d5;
+      border-radius: 14px;
+      padding: 12px 18px;
+      font-size: 0.85rem;
+      color: #7a5c4f;
+      max-width: 640px;
+      text-align: center;
+    }
+
+    .status a { color: var(--pink); font-weight: 600; }
+
+    footer {
+      margin-top: auto;
+      padding-top: 28px;
+      font-size: 0.78rem;
+      color: #a08a7d;
+    }
+
+    @media (max-width: 480px) {
+      h1 { font-size: 1.5rem; }
+      header img { width: 76px; height: 76px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="public/logo.png" alt="Sweetie Treats logo" />
+    <h1>Sweetie <span>Treats</span> Inventory</h1>
+    <p class="subtitle">Business inventory &amp; money tracker</p>
+  </header>
+
+  <main class="grid">
+    <a class="card" href="http://localhost:3000/dashboard">
+      <div class="icon">&#128202;</div>
+      <h2>Dashboard</h2>
+      <p>Summary totals and the money-left formula, all in one view.</p>
+    </a>
+
+    <a class="card" href="http://localhost:3000/finance">
+      <div class="icon">&#128176;</div>
+      <h2>Money</h2>
+      <p>Record income and capital — profit is calculated automatically.</p>
+    </a>
+
+    <a class="card" href="http://localhost:3000/stock">
+      <div class="icon">&#128230;</div>
+      <h2>Stock</h2>
+      <p>Add products with price and quantity, shown as product &rarr; amount.</p>
+    </a>
+
+    <a class="card" href="http://localhost:3000/expenses">
+      <div class="icon">&#128179;</div>
+      <h2>Expenses</h2>
+      <p>Track spending with amount, description, and date/time.</p>
+    </a>
+
+    <a class="card" href="http://localhost:3000/ingredients">
+      <div class="icon">&#127859;</div>
+      <h2>Ingredients</h2>
+      <p>Use ingredients from stock — stock updates and cost is recorded.</p>
+    </a>
+
+    <a class="card" href="http://localhost:3000/password">
+      <div class="icon">&#128274;</div>
+      <h2>Security</h2>
+      <p>Change your delete password (deletes always ask for it).</p>
+    </a>
+  </main>
+
+  <div class="status">
+    These buttons open the running app at
+    <a href="http://localhost:3000">http://localhost:3000</a>.
+    If nothing opens, the app isn't running yet — start it with
+    <strong>npm run start</strong> in the project folder.
+  </div>
+
+  <footer>Sweetie Treats Inventory &mdash; local app</footer>
+</body>
+</html>
