@@ -2,6 +2,7 @@
 import Link from "next/link";
 import ActionForm from "@/components/ActionForm";
 import DateFilter from "@/components/DateFilter";
+import PrintButton from "@/components/PrintButton";
 import { addFinanceEntry, deleteFinanceEntry } from "@/lib/actions";
 import { getDateFilter, toDateTimeLocal } from "@/lib/dateFilter";
 
@@ -41,9 +42,11 @@ export default async function FinancePage({
     { income: 0, capital: 0, profit: 0 },
   );
 
+  const filtering = Boolean(filter.from || filter.to);
+
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border-2 border-pink-200 bg-white p-5 shadow-sm">
+      <section className="no-print rounded-2xl border-2 border-pink-200 bg-white p-5 shadow-sm">
         <h1 className="text-lg font-semibold text-[#3d1a10]">Record Income</h1>
         <p className="mt-1 text-sm text-gray-500">
           Enter the income and how much of it is capital. Profit is calculated automatically
@@ -94,8 +97,16 @@ export default async function FinancePage({
       <section className="rounded-2xl border-2 border-pink-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-[#3d1a10]">History</h2>
-          <DateFilter from={filter.from} to={filter.to} />
+          <div className="flex flex-wrap items-end gap-2">
+            <DateFilter from={filter.from} to={filter.to} />
+            <PrintButton />
+          </div>
         </div>
+        <p className="print-only mt-2 text-sm">
+          Sweetie Treats — Money report ·{" "}
+          {filtering ? `${filter.from} to ${filter.to}` : "All dates"} · Printed{" "}
+          {formatDateTime(new Date())}
+        </p>
 
         {entries.length === 0 ? (
           <p className="mt-3 text-sm text-gray-500">
@@ -124,42 +135,57 @@ export default async function FinancePage({
               </div>
             </div>
 
-            <ul className="mt-4 divide-y divide-gray-100">
-              {entries.map((entry) => (
-                <li key={entry.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
-                  <span className="text-sm">
-                    <span className="text-gray-500">Income</span> {peso(entry.income)}
-                  </span>
-                  <span className="text-sm text-blue-700">Capital {peso(entry.capital)}</span>
-                  <span className="text-sm text-green-700">Profit {peso(entry.profit)}</span>
-                  <span className="text-[11px] leading-tight text-gray-400">
-                    {formatDateTime(entry.occurredAt)}
-                  </span>
-                  <Link
-                    href={`/finance/edit/${entry.id}`}
-                    className="ml-auto rounded-full bg-gray-200 px-4 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-300"
-                  >
-                    Edit
-                  </Link>
-                  <ActionForm
-                    action={deleteFinanceEntry}
-                    submitLabel="Delete"
-                    variant="danger"
-                    className="flex items-center gap-2"
-                  >
-                    <input type="hidden" name="id" value={entry.id} />
-                    <input
-                      name="password"
-                      type="password"
-                      required
-                      placeholder="password"
-                      autoComplete="off"
-                      className="rounded border border-gray-300 px-2 py-1 text-sm"
-                    />
-                  </ActionForm>
-                </li>
-              ))}
-            </ul>
+            <table className="mt-4 w-full border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b-2 border-gray-200 text-xs uppercase tracking-wide text-gray-500">
+                  <th className="py-2 pr-4 font-semibold">Date &amp; time</th>
+                  <th className="py-2 pr-4 font-semibold">Income</th>
+                  <th className="py-2 pr-4 font-semibold">Capital</th>
+                  <th className="py-2 pr-4 font-semibold">Profit</th>
+                  <th className="no-print py-2 font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {entries.map((entry) => (
+                  <tr key={entry.id}>
+                    <td className="py-3 pr-4 text-[11px] leading-tight text-gray-400">
+                      {formatDateTime(entry.occurredAt)}
+                    </td>
+                    <td className="py-3 pr-4 font-semibold text-pink-700">
+                      {peso(entry.income)}
+                    </td>
+                    <td className="py-3 pr-4 text-blue-700">{peso(entry.capital)}</td>
+                    <td className="py-3 pr-4 text-green-700">{peso(entry.profit)}</td>
+                    <td className="no-print py-3">
+                      <div className="flex items-center justify-end gap-2">
+                        <Link
+                          href={`/finance/edit/${entry.id}`}
+                          className="rounded-full bg-gray-200 px-4 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-300"
+                        >
+                          Edit
+                        </Link>
+                        <ActionForm
+                          action={deleteFinanceEntry}
+                          submitLabel="Delete"
+                          variant="danger"
+                          className="flex items-center gap-2"
+                        >
+                          <input type="hidden" name="id" value={entry.id} />
+                          <input
+                            name="password"
+                            type="password"
+                            required
+                            placeholder="password"
+                            autoComplete="off"
+                            className="rounded border border-gray-300 px-2 py-1 text-sm"
+                          />
+                        </ActionForm>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </>
         )}
       </section>

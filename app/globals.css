@@ -27,7 +27,7 @@ body {
    keep only the report content on a plain white page. */
 @media print {
   .print-only {
-    display: block !important;
+    display: revert !important;
   }
 
   .no-print,
@@ -43,5 +43,26 @@ body {
   main {
     padding: 0 !important;
     max-width: none !important;
+  }
+
+  /* Histories print as proper tables. */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  th,
+  td {
+    border: 1px solid #666 !important;
+    padding: 4px 8px !important;
+    text-align: left;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tr {
+    page-break-inside: avoid;
   }
 }

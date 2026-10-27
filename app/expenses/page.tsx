@@ -110,41 +110,55 @@ export default async function ExpensesPage({
               : "No expenses recorded yet."}
           </p>
         ) : (
-          <ul className="mt-4 divide-y divide-gray-100">
-            {expenses.map((expense) => (
-              <li key={expense.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
-                <span className="font-medium">{expense.description}</span>
-                <span className="text-sm font-semibold text-red-700">
-                  {peso(expense.amount)}
-                </span>
-                <span className="text-[11px] leading-tight text-gray-400">
-                  {formatDateTime(expense.occurredAt)}
-                </span>
-                <Link
-                  href={`/expenses/edit/${expense.id}`}
-                  className="no-print ml-auto rounded-full bg-gray-200 px-4 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-300"
-                >
-                  Edit
-                </Link>
-                <ActionForm
-                  action={deleteExpense}
-                  submitLabel="Delete"
-                  variant="danger"
-                  className="flex items-center gap-2"
-                >
-                  <input type="hidden" name="id" value={expense.id} />
-                  <input
-                    name="password"
-                    type="password"
-                    required
-                    placeholder="password"
-                    autoComplete="off"
-                    className="rounded border border-gray-300 px-2 py-1 text-sm"
-                  />
-                </ActionForm>
-              </li>
-            ))}
-          </ul>
+          <table className="mt-4 w-full border-collapse text-left text-sm">
+            <thead>
+              <tr className="border-b-2 border-gray-200 text-xs uppercase tracking-wide text-gray-500">
+                <th className="py-2 pr-4 font-semibold">Description</th>
+                <th className="py-2 pr-4 font-semibold">Amount</th>
+                <th className="py-2 pr-4 font-semibold">Date &amp; time</th>
+                <th className="no-print py-2 font-semibold">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {expenses.map((expense) => (
+                <tr key={expense.id}>
+                  <td className="py-3 pr-4 font-medium">{expense.description}</td>
+                  <td className="py-3 pr-4 font-semibold text-red-700">
+                    {peso(expense.amount)}
+                  </td>
+                  <td className="py-3 pr-4 text-[11px] leading-tight text-gray-400">
+                    {formatDateTime(expense.occurredAt)}
+                  </td>
+                  <td className="no-print py-3">
+                    <div className="flex items-center justify-end gap-2">
+                      <Link
+                        href={`/expenses/edit/${expense.id}`}
+                        className="rounded-full bg-gray-200 px-4 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-300"
+                      >
+                        Edit
+                      </Link>
+                      <ActionForm
+                        action={deleteExpense}
+                        submitLabel="Delete"
+                        variant="danger"
+                        className="flex items-center gap-2"
+                      >
+                        <input type="hidden" name="id" value={expense.id} />
+                        <input
+                          name="password"
+                          type="password"
+                          required
+                          placeholder="password"
+                          autoComplete="off"
+                          className="rounded border border-gray-300 px-2 py-1 text-sm"
+                        />
+                      </ActionForm>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </section>
     </div>
