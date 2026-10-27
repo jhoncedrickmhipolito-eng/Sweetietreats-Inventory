@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import ActionForm from "@/components/ActionForm";
-import { addProduct, updateProductStock, deleteProduct } from "@/lib/actions";
+import StockQtyInput from "@/components/StockQtyInput";
+import { addProduct, deleteProduct } from "@/lib/actions";
 
 // Always render fresh from the database (no static prerender).
 export const instant = false;
@@ -88,22 +89,10 @@ export default async function StockPage() {
                 >
                   {product.quantity} in stock
                 </span>
-                <ActionForm
-                  action={updateProductStock}
-                  submitLabel="Set stock"
-                  className="ml-auto flex items-center gap-2"
-                >
-                  <input type="hidden" name="id" value={product.id} />
-                  <input
-                    name="quantity"
-                    type="number"
-                    step="1"
-                    min="0"
-                    required
-                    defaultValue={product.quantity}
-                    className="w-20 rounded border border-gray-300 px-2 py-1 text-sm"
-                  />
-                </ActionForm>
+                <StockQtyInput
+                  productId={product.id}
+                  initialQty={product.quantity}
+                />
                 <ActionForm action={deleteProduct} submitLabel="Delete" variant="danger" className="flex items-center">
                   <input type="hidden" name="id" value={product.id} />
                 </ActionForm>
